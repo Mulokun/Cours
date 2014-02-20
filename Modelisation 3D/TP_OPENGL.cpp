@@ -76,6 +76,9 @@ int _select = -1;
 vector<Point> _pts;
 int _e = 1;
 int _u = 1;
+bool _rotate = false;
+int _lastX = 0;
+int _lastY = 0;
 
 void selectMouse(int button, int state, int x, int y);
 void move(int x, int y);
@@ -96,22 +99,28 @@ struct fCylindre {
 	vector<Point> p;
 };
 
-struct fCylindre facettiseCylindre(double r, double h, int m, Vector norme);
+struct fCylindre _c;
+
+struct fCylindre facettiseCylindre(double r, double h, int m);
+struct fCylindre facettiseCone(double r, double rp, double h, int m);
 void drawCylindre(struct fCylindre c);
 
 
 
 int main(int argc, char **argv) 
 {  
-	_pts.push_back( Point(0, 0, 0) );
-	_pts.push_back( Point(1, 1, 0) );
-	_pts.push_back( Point(2, 0, 0) );
-	_pts.push_back( Point(2, 1, 0) );
-	_pts.push_back( Point(2, -1, 0) );
+	//_pts.push_back( Point(0, 0, 0) );
+	//_pts.push_back( Point(1, 1, 0) );
+	//_pts.push_back( Point(2, 0, 0) );
+	//_pts.push_back( Point(2, 1, 0) );
+	//_pts.push_back( Point(2, -1, 0) );
 //	_pts.push_back( Point(2, 3, 0) );
 //	_pts.push_back( Point(2, -2, 0) );
 //	_pts.push_back( Point(1, 2, 0) );
 
+	//_c = facettiseCylindre(1.0, 1.0, 10);
+	_c = facettiseCone(1.0, 0.3, 4.0, 10);
+	
  	// initialisation  des paramètres de GLUT en fonction
 	// des arguments sur la ligne de commande
   	glutInit(&argc, argv);
@@ -369,8 +378,7 @@ void render_scene()
 	drawTriangles(tri);
 */
 
-	struct fCylindre c = facettiseCylindre(1.0, 1.0, 10, Vector(1.0, 2.0, 1.0));
-	drawCylindre(c);
+	drawCylindre(_c);
 
 }
 
@@ -519,15 +527,44 @@ void selectMouse(int button, int state, int x, int y) {
 				break;
 			}
 		}
+	} else if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+		_rotate = true;
+		_lastX = x;
+		_lastY = y;
+	} else if(button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+		_select = -1;
+	} else if(button == GLUT_RIGHT_BUTTON && state == GLUT_UP) {
+		_rotate = false;
+		_lastX = x;
+		_lastY = y;
 	}
 }
 
 
 void move(int x, int y) {
 	if(_select > -1) {
-		_pts[_select].setX(toGraphX(x));
-		_pts[_select].setY(toGraphY(y));
+		_c.p[_select].setX(toGraphX(x));
+		_c.p[_select].setY(toGraphY(y));
 
+		window_display();
+	}
+
+	if(_rotate) {
+		double tY = (double)(toGraphX(_lastX) - toGraphX(x)) / 180.0 * PI * 3;
+		double tX = (double)(toGraphX(_lastY) - toGraphX(y)) / 180.0 * PI * 3;
+
+		for( int i = 0; i < _c.p.size(); i++ ) {
+			// X
+			_c.p[i].setY( _c.p[i].getY() * cos(tX) - _c.p[i].getZ() * sin(tX) );
+			_c.p[i].setZ( _c.p[i].getY() * sin(tX) + _c.p[i].getZ() * cos(tX) );
+
+			// Y
+			_c.p[i].setX( _c.p[i].getX() * cos(tY) + _c.p[i].getZ() * sin(tY) );
+			_c.p[i].setZ( 0 - _c.p[i].getX() * sin(tY) + _c.p[i].getZ() * cos(tY) );
+		}
+
+		_lastX = x;
+		_lastY = y;
 		window_display();
 	}
 }
@@ -606,14 +643,8 @@ vector<Point> surface( vector<Point> p1, vector<Point> p2, int nbU)
 }
 
 
-struct fCylindre facettiseCylindre(double r, double h, int m, Vector norme)
+struct fCylindre facettiseCylindre(double r, double h, int m)
 {
-	//norme.normalize();
-
-	cout << norme.getX() << endl;
-	cout << norme.getY() << endl;
-	cout << norme.getZ() << endl;
-
 	vector<Point> ps;
 
 	for(int i = 0; i<m; i++) {
@@ -627,15 +658,36 @@ struct fCylindre facettiseCylindre(double r, double h, int m, Vector norme)
 		double x, y;
 		x = cos(2 * PI / m * i) * r;
 		y = sin(2 * PI / m * i) * r;
-		ps.push_back( Point(x, y, 2) );
+		ps.push_back( Point(x, y, h) );
 	}
 
-	for(int i=0;i<ps.size();i++) {
-		ps[i].setX( ps[i].getX() * norme.getX() );
-		ps[i].setY( ps[i].getY() * norme.getY() );
-		ps[i].setZ( ps[i].getZ() * norme.getZ() );
+	struct fCylindre c;
+	c.r = r;
+	c.h = h;
+	c.m = m;
+	c.p = ps;
+	return c;
+}
+
+
+
+struct fCylindre facettiseCone(double r, double rp, double h, int m)
+{
+	vector<Point> ps;
+
+	for(int i = 0; i<m; i++) {
+		double x, y;
+		x = cos(2 * PI / m * i) * r;
+		y = sin(2 * PI / m * i) * r;
+		ps.push_back( Point(x, y, 0) );
 	}
 
+	for(int i = 0; i<m; i++) {
+		double x, y;
+		x = cos(2 * PI / m * i) * rp;
+		y = sin(2 * PI / m * i) * rp;
+		ps.push_back( Point(x, y, h) );
+	}
 
 	struct fCylindre c;
 	c.r = r;
@@ -659,27 +711,16 @@ void drawCylindre(struct fCylindre c)
 		glVertex3f( c.p[i + m].getX(), c.p[i + m].getY(), c.p[i + m].getZ() );
 	}
 	glEnd();
-/*
+
 	glBegin(GL_POLYGON);
 	for(int i=0; i<c.m;i++) {
-		glVertex3f( c.p[i].getX(), c.p[i].getY(), c.p[i].getZ() );	
-	cout << " ------ " << endl;
-	cout << c.p[i].getX() << endl;
-	cout << c.p[i].getY() << endl;
-	cout << c.p[i].getZ() << endl;
-
-
+		glVertex3f( c.p[i].getX(), c.p[i].getY(), c.p[i].getZ() );
 	}
 	glEnd();
-	cout << " ------ " << endl;
-*/
+
 	glBegin(GL_POLYGON);
 	for(int i=0; i<c.m;i++) {
-		glVertex3f( c.p[i+m].getX(), c.p[i+m].getY(), c.p[i+m].getZ() );	
-	cout << " ------ " << endl;
-	cout << c.p[i+m].getX() << endl;
-	cout << c.p[i+m].getY() << endl;
-	cout << c.p[i+m].getZ() << endl;
+		glVertex3f( c.p[i+m].getX(), c.p[i+m].getY(), c.p[i+m].getZ() );
 	}
 	glEnd();
 
