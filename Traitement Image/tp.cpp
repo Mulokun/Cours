@@ -3,8 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
+#include <list>
 
 #include "ImageBase.h"
+#include "RAG.h"
 
 using namespace std;
 
@@ -893,6 +895,284 @@ void flouteFond(char * n1, char * n2, char * nf)
 }
 
 
+double moyenne(ImageBase & img, int x, int y, int h, int w)
+{
+	double m = 0;
+	for(int i = x; i < x + h; i++) { 
+		for(int j = y; j < y + w; j++) { 
+			m += img[i][j];
+		}
+	}
+
+	return m / (double)(h*w);
+}
+
+
+double variance(ImageBase & img, int x, int y, int h, int w)
+{
+	double a = 0, b = 0;
+	for(int i = x; i < x + h; i++) { 
+		for(int j = y; j < y + w; j++) { 
+			a += img[i][j] * img[i][j];
+			b += img[i][j];
+		}
+	}
+
+
+double t = (a / (double)(h*w)) - (b / (double)(h*w)) * (b / (double)(h*w));
+//	cout << "x :: " << t << endl;
+	return t;
+}
+
+
+/** 
+RAG {
+	int x, y, h, w;
+	vector<RAG> left;
+	vector<RAG> right;
+	vector<RAG> up;
+	vector<RAG> down;	
+
+}
+**/
+
+void divisionRec(ImageBase & img, int seuil, ImageBase & out, list<RAG*> & r, RAG * c) // RAG du carre
+{
+	if(!c) {
+		return;
+	}
+
+	if(c->h < 2 || c->w < 2) {
+		return;
+	}
+
+	
+	r.remove( c );
+	RAG * r1 = new RAG(c->x, c->y, c->h/2, c->w/2);
+	RAG * r2 = new RAG(c->x + c->w/2, c->y, c->h/2, c->w/2);
+	RAG * r3 = new RAG(c->x, c->y + c->h/2, c->h/2, c->w/2);
+	RAG * r4 = new RAG(c->x + c->w/2, c->y + c->h/2, c->h/2, c->w/2);
+
+	for(std::list<RAG*>::iterator i = c->f.begin(); i != c->f.end(); ++i) {
+		r1->add( *i );
+		r2->add( *i );
+		r3->add( *i );
+		r4->add( *i );
+	}
+
+	r1->add( r2 );
+	r1->add( r4 );
+	r3->add( r2 );
+	r3->add( r4 );
+
+	r1->verify();
+	r2->verify();
+	r3->verify();
+	r4->verify();
+
+	r.push_back( r1 );
+	r.push_back( r2 );
+	r.push_back( r3 );
+	r.push_back( r4 );
+	
+	for(std::list<RAG*>::iterator i = r.begin(); i != r.end(); ++i) {
+		(*i)->del(c);
+	}
+
+
+
+
+	//cout << "e" << endl;
+	
+	//ImageBase out(img.getWidth(), img.getHeight(), img.getColor());
+
+	if(variance(img, r1->x, r1->y, r1->h, r1->w) > seuil) {
+		divisionRec(img, seuil, out, r, r1);
+	} else {
+		int m = moyenne(img, r1->x, r1->y, r1->h, r1->w);
+		for(int i = r1->x; i < r1->x + r1->h; i++) { 
+			for(int j = r1->y; j < r1->y + r1->w; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+
+	if(variance(img, r2->x, r2->y, r2->h, r2->w) > seuil) {
+		divisionRec(img, seuil, out, r, r2);
+	} else {
+		int m = moyenne(img, r2->x, r2->y, r2->h, r2->w);
+		for(int i = r2->x; i < r2->x + r2->h; i++) { 
+			for(int j = r2->y; j < r2->y + r2->w; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+
+	if(variance(img, r3->x, r3->y, r3->h, r3->w) > seuil) {
+		divisionRec(img, seuil, out, r, r3);
+	} else {
+		int m = moyenne(img, r3->x, r3->y, r3->h, r3->w);
+		for(int i = r3->x; i < r3->x + r3->h; i++) { 
+			for(int j = r3->y; j < r3->y + r3->w; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+
+	if(variance(img, r4->x, r4->y, r4->h, r4->w) > seuil) {
+		divisionRec(img, seuil, out, r, r4);
+	} else {
+		int m = moyenne(img, r4->x, r4->y, r4->h, r4->w);
+		for(int i = r4->x; i < r4->x + r4->h; i++) { 
+			for(int j = r4->y; j < r4->y + r4->w; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+/*
+	if(variance(img, x+h/2, y, h/2, w/2) > seuil) {
+		divisionRec(img, x+h/2, y, h/2, w/2, seuil, out);
+	} else {
+		int m = moyenne(img, x+h/2, y, h/2, w/2);
+		for(int i = x+h/2; i < x+h/2 + h/2; i++) { 
+			for(int j = y; j < y + w/2; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+	if(variance(img, x+h/2, y+w/2, h/2, w/2) > seuil) {
+		divisionRec(img, x+h/2, y+w/2, h/2, w/2, seuil, out);
+	} else {
+		int m = moyenne(img, x+h/2, y+w/2, h/2, w/2);
+		for(int i = x+h/2; i < x+h/2 + h/2; i++) { 
+			for(int j = y+w/2; j < y+w/2 + w/2; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+
+	if(variance(img, x, y+w/2, h/2, w/2) > seuil) {
+		divisionRec(img, x, y+w/2, h/2, w/2, seuil, out);
+	} else {
+		int m = moyenne(img, x, y+w/2, h/2, w/2);
+		for(int i = x; i < x + h/2; i++) { 
+			for(int j = y+w/2; j < y+w/2 + w/2; j++) { 
+				out[i][j] = m;
+			}
+		}
+	}
+*/
+
+}
+
+
+void division4(ImageBase & img, int x, int y, int h, int w, char * n)
+{
+	ImageBase out(img.getWidth(), img.getHeight(), img.getColor());
+
+	double m = moyenne(img, x, y, h/2, w/2);
+	cout << "c = " << m << endl;
+	for(int i = x; i < x + h/2; i++) { 
+		for(int j = y; j < y + w/2; j++) { 
+			out[i][j] = m;
+		}
+	}
+
+	m = moyenne(img, x+h/2, y, h/2, w/2);
+	cout << "c = " << m << endl;
+	for(int i = x+h/2; i < x+h/2 + h/2; i++) { 
+		for(int j = y; j < y + w/2; j++) { 
+			out[i][j] = m;
+		}
+	}
+
+	m = moyenne(img, x+h/2, y+w/2, h/2, w/2);
+	cout << "c = " << m << endl;
+	for(int i = x+h/2; i < x+h/2 + h/2; i++) { 
+		for(int j = y+w/2; j < y+w/2 + w/2; j++) { 
+			out[i][j] = m;
+		}
+	}
+
+	m = moyenne(img, x, y+w/2, h/2, w/2);
+	cout << "c = " << m << endl;
+	for(int i = x; i < x + h/2; i++) { 
+		for(int j = y+w/2; j < y+w/2 + w/2; j++) { 
+			out[i][j] = m;
+		}
+	}
+
+	cout << "c--- " << endl;
+	out.save(n);
+}
+
+
+void fusion(ImageBase & img, list<RAG*> & l)
+{
+	cout << l.size() << endl;
+
+	for(std::list<RAG*>::iterator i = l.begin(); i != l.end(); ++i) {
+		for(std::list<RAG*>::iterator j = (*i)->f.begin(); j != (*i)->f.end(); ++j) {
+			int m1 = moyenne(img, (*i)->x, (*i)->y, (*i)->h, (*i)->w);
+			int m2 = moyenne(img, (*j)->x, (*j)->y, (*j)->h, (*j)->w);
+			if(abs(m1 - m2) < 5) {
+				int nc = m1; //(m1 + m2) / 2;
+
+				for(int x1 = (*i)->x; x1 < (*i)->x + (*i)->h; x1++) {
+					for(int y1 = (*i)->y; y1 < (*i)->y + (*i)->w; y1++) {
+						img[x1][y1] = nc;
+					}
+				}
+				
+				for(int x2 = (*j)->x; x2 < (*j)->x + (*j)->h; x2++) {
+					for(int y2 = (*j)->y; y2 < (*j)->y + (*j)->w; y2++) {
+						img[x2][y2] = nc;
+					}
+				}
+
+			}
+		}
+	}
+}
+
+
+void division(char * in, char * out, int seuil)
+{
+	ImageBase img;
+	img.load(in);
+	ImageBase Iout(img.getWidth(), img.getHeight(), img.getColor());
+	
+	RAG * r = new RAG(0, 0, img.getHeight(), img.getWidth());
+	list<RAG*> l;
+	divisionRec(img, seuil, Iout, l, r);
+
+	//fusion(Iout, l);
+
+	Iout.save(out);
+}
+
+
+
+void divisionFusion(char * in, char * out, int seuil)
+{
+	ImageBase img;
+	img.load(in);
+	ImageBase Iout(img.getWidth(), img.getHeight(), img.getColor());
+	
+	RAG * r = new RAG(0, 0, img.getHeight(), img.getWidth());
+	list<RAG*> l;
+	divisionRec(img, seuil, Iout, l, r);
+
+	fusion(Iout, l);
+
+	Iout.save(out);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -1021,6 +1301,15 @@ int main(int argc, char** argv)
 		} else {
 			flouteFond( argv[2], argv[3], argv[4] );
 		}
+	} else if( arg == "-Df" ) {
+		divisionFusion( argv[2], argv[3], atoi(argv[4]) );
+	} else if( arg == "-D" ) {
+		division( argv[2], argv[3], atoi(argv[4]) );
+	} else if( arg == "-D4" ) {
+		ImageBase img;
+		img.load(argv[2]);
+
+		division4(img, 0, 0, img.getHeight(), img.getWidth(), argv[3]);
 	} else {
 		cout << "Bad argument." << endl;
 	}

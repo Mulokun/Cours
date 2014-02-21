@@ -5,15 +5,14 @@ TMPFOLDER=tmp
 all: tp
 
 		
-tp: tp.o ImageBase.o
+tp: tp.o ImageBase.o RAG.o
 	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
-	$(CC)  $(TMPFOLDER)/ImageBase.o $(TMPFOLDER)/tp.o -o exe
+	$(CC)  $(TMPFOLDER)/ImageBase.o $(TMPFOLDER)/RAG.o $(TMPFOLDER)/tp.o -o exe
 
 profil: profil.o ImageBase.o
 	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
 	$(CC) $(TMPFOLDER)/profil.o $(TMPFOLDER)/ImageBase.o -o profil
 
-	
 tp.o: tp.cpp ImageBase.h
 	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
 	$(CC) -o $(TMPFOLDER)/tp.o -c tp.cpp
@@ -21,6 +20,10 @@ tp.o: tp.cpp ImageBase.h
 profil.o: profil.cpp ImageBase.h
 	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
 	$(CC) -o $(TMPFOLDER)/profil.o -c profil.cpp
+
+RAG.o: RAG.cpp
+	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
+	$(CC) -o $(TMPFOLDER)/RAG.o -c RAG.cpp
 
 ImageBase.o: ImageBase.cpp
 	if [ ! -d $(TMPFOLDER) ]; then mkdir $(TMPFOLDER); fi
