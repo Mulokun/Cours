@@ -99,11 +99,20 @@ struct fCylindre {
 	vector<Point> p;
 };
 
-struct fCylindre _c;
+struct fCircle {
+	double r;
+	int m;
+	int n;
+	vector<Point> p;
+};
+
+struct fCircle _c;
 
 struct fCylindre facettiseCylindre(double r, double h, int m);
 struct fCylindre facettiseCone(double r, double rp, double h, int m);
 void drawCylindre(struct fCylindre c);
+struct fCircle facettiseCircle(double r, int m, int n);
+void drawCircle(struct fCircle c);
 
 
 
@@ -119,7 +128,7 @@ int main(int argc, char **argv)
 //	_pts.push_back( Point(1, 2, 0) );
 
 	//_c = facettiseCylindre(1.0, 1.0, 10);
-	_c = facettiseCone(1.0, 0.3, 4.0, 10);
+	_c = facettiseCircle(1.0, 10, 10);
 	
  	// initialisation  des paramètres de GLUT en fonction
 	// des arguments sur la ligne de commande
@@ -192,7 +201,7 @@ GLvoid window_reshape(GLsizei width, GLsizei height)
   	// ici, vous verrez pendant le cours sur les projections qu'en modifiant les valeurs, il est
   	// possible de changer la taille de l'objet dans la fenêtre. Augmentez ces valeurs si l'objet est 
   	// de trop grosse taille par rapport à la fenêtre.
-  	glOrtho(-4.0, 4.0, -4.0, 4.0, -4.0, 4.0);
+  	glOrtho(-8.0, 8.0, -8.0, 8.0, -8.0, 8.0);
 
   	// toutes les transformations suivantes s´appliquent au modèle de vue 
   	glMatrixMode(GL_MODELVIEW);
@@ -245,7 +254,7 @@ void render_scene()
 	//Définition de la couleur
  	glColor3f(1.0, 1.0, 1.0);
 	
-	glPolygonMode(GL_FRONT, GL_LINE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
 
@@ -378,7 +387,7 @@ void render_scene()
 	drawTriangles(tri);
 */
 
-	drawCylindre(_c);
+	drawCircle(_c);
 
 }
 
@@ -697,6 +706,31 @@ struct fCylindre facettiseCone(double r, double rp, double h, int m)
 	return c;
 }
 
+struct fCircle facettiseCircle(double r, int m, int n )
+{
+	vector<Point> ps;
+
+	for(int j = 0; j <= n; j++) {
+		double v = (double)(2.0*(double)r/(double)n) * (double)j - r;
+		double w = sqrt( r*r - v*v);
+		//w = v > 0 ? w : -w;
+		for(int i = 0; i<m; i++) {
+			double x, y;
+			x = cos(2 * PI / m * i) * w;
+			y = sin(2 * PI / m * i) * w;
+			ps.push_back( Point(x, y, v) );
+		}
+	}
+
+	struct fCircle c;
+	c.r = r;
+	c.m = m;
+	c.n = n;
+	c.p = ps;
+
+	return c;
+}
+
 
 void drawCylindre(struct fCylindre c)
 {
@@ -725,6 +759,29 @@ void drawCylindre(struct fCylindre c)
 	glEnd();
 
 }
+
+
+void drawCircle(struct fCircle c)
+{
+	int m = c.m;
+	int n = c.n;
+	
+	glBegin(GL_QUADS);
+	for(int j=0;j<n;j++) {
+		for(int k=0;k<m;k++) {
+			int i = k;
+
+			glVertex3f( c.p[i + n*j].getX(), c.p[i + n*j].getY(), c.p[i + n*j].getZ() );
+			glVertex3f( c.p[(i+1)%m + n*j].getX(), c.p[(i+1)%m + n*j].getY(), c.p[(i+1)%m + n*j].getZ() );
+		
+			glVertex3f( c.p[(i+1)%m + m + n*j].getX(), c.p[(i+1)%m + m + n*j].getY(), c.p[(i+1)%m + m + n*j].getZ() );
+			glVertex3f( c.p[i + m + n*j].getX(), c.p[i + m + n*j].getY(), c.p[i + m + n*j].getZ() );
+		}
+	}
+	glEnd();
+
+}
+
 
 
 
